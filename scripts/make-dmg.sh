@@ -25,11 +25,13 @@ ln -s /Applications "${STAGE}/Applications"
 mkdir -p "${STAGE}/Wallpapers"
 cp Wallpapers/* "${STAGE}/Wallpapers/"
 
-if [ -f "dist/How to install.pdf" ]; then
-    cp "dist/How to install.pdf" "${STAGE}/"
-else
-    echo "warning: dist/How to install.pdf is missing from the repository" >&2
-fi
+for doc in "How to install.pdf" "Install Winter Cabin - simple guide.pdf"; do
+    if [ -f "dist/${doc}" ]; then
+        cp "dist/${doc}" "${STAGE}/"
+    else
+        echo "warning: dist/${doc} is missing from the repository" >&2
+    fi
+done
 
 echo "==> Building disk image"
 rm -f "${OUT}"
