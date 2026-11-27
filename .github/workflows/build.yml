@@ -1,0 +1,44 @@
+name: Build Winter Cabin
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build universal app and disk image
+    runs-on: macos-14
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Show toolchain
+        run: |
+          sw_vers
+          xcodebuild -version
+          swift --version
+
+      - name: Build Winter Cabin.app
+        run: bash scripts/build-app.sh
+
+      - name: Build WinterCabin.dmg
+        run: bash scripts/make-dmg.sh
+
+      - name: Upload disk image
+        uses: actions/upload-artifact@v4
+        with:
+          name: WinterCabin-dmg
+          path: dist/WinterCabin.dmg
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Attach to release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/WinterCabin.dmg
+          generate_release_notes: true

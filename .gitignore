@@ -1,0 +1,5 @@
+.build/
+build/
+dist/WinterCabin.dmg
+.DS_Store
+*.xcuserdatad
