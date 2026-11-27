@@ -138,9 +138,15 @@ final class AmbientScene: SKScene {
         e.particleAlpha = 0.085
         e.particleAlphaRange = 0.035
         e.particleAlphaSpeed = -0.007
-        e.particleScale = mapper.length(0.0007)
-        e.particleScaleRange = mapper.length(0.0004)
-        e.particleScaleSpeed = mapper.length(0.0010)
+        // particleScale is a multiplier on the texture, not a length in points.
+        // Size the puffs as a fraction of screen height, then divide by the
+        // texture's own size to get the multiplier.
+        let puffTexture: CGFloat = 64
+        let startScale = mapper.length(0.018) / puffTexture
+        let endScale = mapper.length(0.060) / puffTexture
+        e.particleScale = startScale
+        e.particleScaleRange = mapper.length(0.006) / puffTexture
+        e.particleScaleSpeed = (endScale - startScale) / CGFloat(e.particleLifetime)
         e.particleRotationRange = .pi
         e.particleRotationSpeed = 0.12
         e.particleColor = NSColor(calibratedWhite: 0.86, alpha: 1)

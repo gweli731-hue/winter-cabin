@@ -15,7 +15,7 @@ final class WelcomeWindowController: NSObject, NSWindowDelegate {
             return
         }
 
-        let size = CGSize(width: 560, height: 468)
+        let size = CGSize(width: 580, height: 648)
         let window = NSWindow(contentRect: CGRect(origin: .zero, size: size),
                               styleMask: [.titled, .closable],
                               backing: .buffered,
@@ -101,6 +101,8 @@ final class WelcomeWindowController: NSObject, NSWindowDelegate {
         field.isBezeled = false
         field.isEditable = false
         field.isSelectable = false
+        // this view is laid out by frame, not by constraints
+        field.translatesAutoresizingMaskIntoConstraints = true
         return field
     }
 

@@ -44,9 +44,18 @@ final class SurfaceTracker {
     }
 
     private func refresh() {
+        // NSScreen is AppKit, so its geometry is read here on the main thread and
+        // handed to the background pass as plain numbers.
+        let primary = NSScreen.screens.first(where: { $0.frame.origin == .zero })
+            ?? NSScreen.main
+        let primaryMaxY = primary?.frame.maxY ?? 0
+        let screenArea = NSScreen.screens.reduce(CGFloat(0)) {
+            $0 + $1.frame.width * $1.frame.height
+        }
+
         queue.async { [weak self] in
             guard let self = self else { return }
-            let found = self.read()
+            let found = self.read(primaryMaxY: primaryMaxY, screenArea: screenArea)
             DispatchQueue.main.async {
                 self.surfaces = found.surfaces
                 self.dockRect = found.dock
@@ -55,7 +64,8 @@ final class SurfaceTracker {
         }
     }
 
-    private func read() -> (surfaces: [Surface], dock: CGRect?) {
+    private func read(primaryMaxY: CGFloat,
+                      screenArea: CGFloat) -> (surfaces: [Surface], dock: CGRect?) {
         let options: CGWindowListOption = [.optionOnScreenOnly]
         guard let raw = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] else {
             return ([], nil)
@@ -64,7 +74,6 @@ final class SurfaceTracker {
         var result: [Surface] = []
         var dock: CGRect?
         var dockBest: CGFloat = 0
-        let screenArea = NSScreen.screens.reduce(CGFloat(0)) { $0 + $1.frame.width * $1.frame.height }
 
         for entry in raw {
             guard let boundsDict = entry[kCGWindowBounds as String] as? [String: Any],
@@ -81,7 +90,7 @@ final class SurfaceTracker {
             if alpha < 0.15 { continue }
             if cgRect.width < 90 || cgRect.height < 50 { continue }
 
-            let rect = SurfaceTracker.appKitRect(from: cgRect)
+            let rect = SurfaceTracker.appKitRect(from: cgRect, primaryMaxY: primaryMaxY)
 
             if owner == "Dock" {
                 // The Dock process owns several windows; the tile strip is the
@@ -111,11 +120,12 @@ final class SurfaceTracker {
 
     /// Core Graphics reports window bounds with the origin at the top-left of the
     /// primary display; AppKit puts it at the bottom-left.
-    static func appKitRect(from cg: CGRect) -> CGRect {
-        let primary = NSScreen.screens.first(where: { $0.frame.origin == .zero }) ?? NSScreen.main
-        let maxY = primary?.frame.maxY ?? cg.maxY
+    ///
+    /// `primaryMaxY` is passed in rather than read here, so this stays safe to
+    /// call off the main thread.
+    static func appKitRect(from cg: CGRect, primaryMaxY: CGFloat) -> CGRect {
         return CGRect(x: cg.origin.x,
-                      y: maxY - cg.origin.y - cg.height,
+                      y: primaryMaxY - cg.origin.y - cg.height,
                       width: cg.width,
                       height: cg.height)
     }
