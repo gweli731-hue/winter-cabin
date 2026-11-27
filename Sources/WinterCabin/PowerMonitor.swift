@@ -2,7 +2,7 @@ import AppKit
 
 /// Tells the renderers when to stop drawing: screen locked, screen saver up,
 /// display asleep, or Low Power Mode engaged.
-final class PowerMonitor {
+final class PowerMonitor: NSObject {
     static let shared = PowerMonitor()
     static let didChange = Notification.Name("WinterCabinPowerDidChange")
 
@@ -13,7 +13,7 @@ final class PowerMonitor {
         return !isLocked && !isDisplayAsleep && !ProcessInfo.processInfo.isLowPowerModeEnabled
     }
 
-    private init() {}
+    private override init() { super.init() }
 
     func start() {
         let dnc = DistributedNotificationCenter.default()

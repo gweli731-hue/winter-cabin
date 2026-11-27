@@ -2,7 +2,7 @@ import AppKit
 import SpriteKit
 
 /// Owns the transparent, click-through snow window on every screen.
-final class OverlayController {
+final class OverlayController: NSObject {
 
     private var windows: [NSWindow] = []
     private var scenes: [SnowScene] = []

@@ -3,7 +3,7 @@ import SpriteKit
 
 /// One borderless, click-through window per screen, sitting at desktop level:
 /// behind desktop icons and behind every app window.
-final class WallpaperController {
+final class WallpaperController: NSObject {
 
     private var windows: [NSWindow] = []
     private let manifest = SceneManifest.load()
