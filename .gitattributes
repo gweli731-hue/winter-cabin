@@ -1,0 +1,15 @@
+# macOS runners must receive LF, or the shell scripts fail with ^M errors
+* text=auto eol=lf
+*.sh text eol=lf
+*.swift text eol=lf
+*.yml text eol=lf
+*.plist text eol=lf
+*.py text eol=lf
+*.md text eol=lf
+*.json text eol=lf
+
+*.png binary
+*.jpg binary
+*.webp binary
+*.pdf binary
+*.icns binary
