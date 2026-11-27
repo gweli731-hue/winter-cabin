@@ -7,6 +7,11 @@ on:
   pull_request:
   workflow_dispatch:
 
+# new repositories default to a read-only GITHUB_TOKEN, which makes the
+# release upload fail with 403
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build universal app and disk image
@@ -44,3 +49,28 @@ jobs:
         with:
           files: dist/WinterCabin.dmg
           generate_release_notes: true
+          name: Winter Cabin ${{ github.ref_name }}
+          body: |
+            ## Winter Cabin
+
+            A cosy snowy desktop for macOS 13 or later.
+
+            **Download `WinterCabin.dmg` below**, open it, and drag
+            Winter Cabin to your Applications folder. The disk image also
+            contains the wallpaper on its own, and a short install guide.
+
+            ### First launch
+
+            macOS will say the app is from an unidentified developer,
+            because it is signed ad-hoc rather than with a paid Apple
+            Developer ID. You only need to get past this once:
+
+            - **macOS 15 Sequoia or newer** - double-click the app, dismiss
+              the warning, then open **System Settings > Privacy & Security**,
+              scroll to **Security**, and click **Open Anyway**.
+            - **macOS 13 and 14** - right-click the app, choose **Open**, then
+              click **Open** in the dialog.
+
+            Winter Cabin needs no permissions. Everything lives behind the
+            snowflake in the menu bar, and quitting restores your previous
+            desktop picture.
