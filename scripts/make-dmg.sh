@@ -43,6 +43,23 @@ hdiutil create \
 
 hdiutil verify "${OUT}"
 
+# prove the image really contains what we think it does
+echo "==> Contents"
+MOUNT=$(mktemp -d)
+hdiutil attach "${OUT}" -mountpoint "${MOUNT}" -nobrowse -quiet
+ls -1 "${MOUNT}"
+echo "    Wallpapers: $(ls -1 "${MOUNT}/Wallpapers" | wc -l | tr -d ' ') files"
+MISSING=0
+for want in "${APP_NAME}.app" "How to install.pdf" "Install Winter Cabin - simple guide.pdf"; do
+    if [ ! -e "${MOUNT}/${want}" ]; then
+        echo "error: ${want} is not in the disk image" >&2
+        MISSING=1
+    fi
+done
+hdiutil detach "${MOUNT}" -quiet
+rmdir "${MOUNT}" 2>/dev/null || true
+[ "${MISSING}" -eq 0 ] || exit 1
+
 SIZE_BYTES=$(stat -f%z "${OUT}")
 SIZE_MB=$(( SIZE_BYTES / 1024 / 1024 ))
 echo "==> ${OUT} is ${SIZE_MB} MB"
