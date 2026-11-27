@@ -10,7 +10,9 @@ on:
 jobs:
   build:
     name: Build universal app and disk image
-    runs-on: macos-14
+    # macos-14 resolved to an XL runner this account cannot use; the plain
+    # label maps to the standard GitHub-hosted macOS runner.
+    runs-on: macos-latest
 
     steps:
       - name: Check out
