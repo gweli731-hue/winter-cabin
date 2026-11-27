@@ -92,7 +92,7 @@ class Content:
 
     def body(self, s, x=MARGIN, width=TEXT_W):
         for part in wrap(s, 10.5, False, width):
-            self.line(part, 10.5, False, x=x, lead=13.6, colour=(0.22, 0.24, 0.30))
+            self.line(part, 10.5, False, x=x, lead=13.1, colour=(0.22, 0.24, 0.30))
 
     def bullet(self, s, marker="•"):
         self.colour(0.22, 0.24, 0.30)
@@ -110,6 +110,14 @@ class Content:
 
     def image(self, name, x, y, w, h):
         self.ops.append(f"q {w:.2f} 0 0 {h:.2f} {x:.2f} {y:.2f} cm /{name} Do Q".encode())
+
+    def mono(self, s):
+        """A Terminal command, set in Courier so it is clear what to type."""
+        self.colour(0.16, 0.18, 0.24)
+        self.ops.append(b"BT /F3 9.0 Tf "
+                        + f"{MARGIN + 14:.1f} {self.y:.1f} Td (".encode()
+                        + esc(s) + b") Tj ET")
+        self.y -= 14.0
 
     def rule(self):
         self.y -= 6
@@ -141,10 +149,10 @@ def build() -> bytes:
     jpeg, jw, jh = banner_jpeg()
 
     c = Content()
-    banner_h = 150.0
+    banner_h = 128.0
     c.image("Im1", 0, PAGE_H - banner_h, PAGE_W, banner_h)
 
-    c.y = PAGE_H - banner_h - 38
+    c.y = PAGE_H - banner_h - 34
     c.line("Winter Cabin", 24, True, colour=(0.10, 0.11, 0.17))
     c.line("A snowy desktop for macOS - how to install it", 11.5, False,
            colour=(0.42, 0.45, 0.52))
@@ -156,43 +164,44 @@ def build() -> bytes:
     c.step(3, "Eject the disk image, then open Winter Cabin from Applications.")
 
     c.heading("The first time you open it")
-    c.body("macOS will warn that the app is from an unidentified developer. That is "
-           "expected: the app is signed ad-hoc rather than with a paid Apple Developer "
-           "ID, so Apple has not been asked to vouch for it. Open it like this, once:")
-    c.bullet("Right-click (or Control-click) Winter Cabin in your Applications folder "
-             "and choose Open. In the dialog that appears, click Open again. After that "
-             "it opens normally like any other app.")
-    c.bullet("If there is no Open button, go to System Settings > Privacy & Security, "
-             "scroll down to Security, and click Open Anyway next to Winter Cabin.")
+    c.body("macOS will refuse to open it and say it is from an unidentified developer. "
+           "That is expected: the app is signed ad-hoc, not with a paid Apple Developer "
+           "ID. You only need to get past this once. How depends on your macOS version:")
+    c.bullet("macOS 15 Sequoia or newer: double-click Winter Cabin and dismiss the "
+             "warning. Open System Settings > Privacy & Security, scroll down to "
+             "Security, click Open Anyway beside Winter Cabin, then confirm with Open.")
+    c.bullet("macOS 13 and 14: right-click (or Control-click) Winter Cabin in "
+             "Applications and choose Open, then click Open in the dialog. Sequoia "
+             "removed this shortcut, which is why newer Macs need the route above.")
+    c.bullet("Still refusing? It was flagged when it was downloaded. Open Terminal, "
+             "run this, then open the app again:")
+    c.mono('xattr -dr com.apple.quarantine "/Applications/Winter Cabin.app"')
 
     c.heading("Using it")
     c.body("Winter Cabin has no window. Everything lives behind the snowflake in your "
-           "menu bar, at the top right of the screen.")
+           "menu bar.")
     c.bullet("Snow on or off, and how heavily it falls: light, medium or blizzard.")
-    c.bullet("Snow settles along the bottom of the screen, on top of the Dock, and on "
-             "the top edge of any window that is open. Move a window and its snow "
-             "slides off.")
+    c.bullet("Snow settles along the bottom of the screen, on the Dock and on the top "
+             "edge of any open window. Move a window and its snow slides off.")
     c.bullet("Click a bare patch of desktop to drop a snowball. Stack three in the same "
              "spot and they become a snowman.")
-    c.bullet("Every few minutes a small plow drives through and clears everything. "
-             "Send the plow now does it on demand.")
+    c.bullet("Every few minutes a small plow clears everything. Send the plow now does "
+             "it on demand.")
     c.bullet("Ambient wallpaper motion adds drifting chimney smoke, twinkling string "
              "lights, flickering windows and shimmer on the lake.")
 
     c.heading("Permissions")
-    c.body("None. Winter Cabin reads only the position and size of your open windows, "
-           "never their contents, so macOS does not ask for Screen Recording or "
-           "Accessibility. The snow layer never swallows a click, so your Dock, desktop "
-           "icons and apps all carry on working normally.")
+    c.body("None. Winter Cabin reads where your windows are, never what is inside them, "
+           "so macOS never asks for Screen Recording or Accessibility. The snow layer "
+           "never swallows a click.")
 
     c.heading("The Wallpapers folder")
-    c.body("The disk image also carries the scene as plain picture files, for anyone "
-           "who just wants the image without the app. Sizes are included for Retina and "
-           "for ordinary displays, in both 16:10 and 16:9.")
+    c.body("The disk image also carries the scene as plain picture files, in 16:10 and "
+           "16:9, for anyone who just wants the image without the app.")
 
     c.heading("Removing it")
-    c.body("Choose Quit Winter Cabin from the menu, which puts your previous desktop "
-           "picture back, then drag the app from Applications to the Trash.")
+    c.body("Choose Quit Winter Cabin from the menu - that puts your own desktop "
+           "picture back - then drag the app to the Trash.")
 
     content = c.data()
 
@@ -201,7 +210,7 @@ def build() -> bytes:
     objects.append(b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>")
     objects.append(
         f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {PAGE_W:.0f} {PAGE_H:.0f}] "
-        f"/Resources << /Font << /F1 5 0 R /F2 6 0 R >> /XObject << /Im1 7 0 R >> >> "
+        f"/Resources << /Font << /F1 5 0 R /F2 6 0 R /F3 8 0 R >> /XObject << /Im1 7 0 R >> >> "
         f"/Contents 4 0 R >>".encode())
     objects.append(b"<< /Length " + str(len(content)).encode() + b" >>\nstream\n"
                    + content + b"\nendstream")
@@ -212,6 +221,8 @@ def build() -> bytes:
     objects.append(f"<< /Type /XObject /Subtype /Image /Width {jw} /Height {jh} "
                    f"/ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode "
                    f"/Length {len(jpeg)} >>".encode() + b"\nstream\n" + jpeg + b"\nendstream")
+    objects.append(b"<< /Type /Font /Subtype /Type1 /BaseFont /Courier "
+                   b"/Encoding /WinAnsiEncoding >>")
 
     out = bytearray(b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n")
     offsets = [0]
