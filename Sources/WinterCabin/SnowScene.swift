@@ -31,6 +31,8 @@ final class SnowScene: SKScene {
         var vy: CGFloat
         let radius: CGFloat
         var settled = false
+        /// Which drift it is resting on, so it falls when that drift goes.
+        var surfaceKey = "bottom"
 
         init(node: SKShapeNode, x: CGFloat, y: CGFloat, vx: CGFloat, vy: CGFloat, radius: CGFloat) {
             self.node = node; self.x = x; self.y = y
@@ -40,8 +42,26 @@ final class SnowScene: SKScene {
 
     private final class Stack {
         var x: CGFloat
+        var baseY: CGFloat
+        var surfaceKey: String
         var balls: [Ball] = []
-        init(x: CGFloat) { self.x = x }
+
+        init(x: CGFloat, baseY: CGFloat, surfaceKey: String) {
+            self.x = x; self.baseY = baseY; self.surfaceKey = surfaceKey
+        }
+    }
+
+    private final class Snowman {
+        let node: SKNode
+        let x: CGFloat
+        var y: CGFloat
+        var surfaceKey: String
+        var falling = false
+        var vy: CGFloat = 0
+
+        init(node: SKNode, x: CGFloat, y: CGFloat, surfaceKey: String) {
+            self.node = node; self.x = x; self.y = y; self.surfaceKey = surfaceKey
+        }
     }
 
     private final class PlowRun {
@@ -66,7 +86,7 @@ final class SnowScene: SKScene {
     private var piles: [String: SnowPile] = [:]
     private var balls: [Ball] = []
     private var stacks: [Stack] = []
-    private var snowmen: [SKNode] = []
+    private var snowmen: [Snowman] = []
     private var plow: PlowRun?
 
     private var lastTime: TimeInterval = 0
@@ -265,8 +285,10 @@ final class SnowScene: SKScene {
             ball.x += ball.vx * dt
             ball.y += ball.vy * dt
 
-            let floor = groundY(at: ball.x) + ball.radius
+            let footing = support(at: ball.x, below: ball.y)
+            let floor = footing.y + ball.radius
             if ball.y <= floor {
+                ball.surfaceKey = footing.key
                 ball.y = floor
                 if ball.vy < -130 {
                     ball.vy = -ball.vy * 0.33
@@ -291,16 +313,21 @@ final class SnowScene: SKScene {
 
     private func settle(_ ball: Ball) {
         ball.settled = true
+        let footing = support(at: ball.x, below: ball.y + 1)
+        ball.surfaceKey = footing.key
 
+        // only stack onto a pile standing on the same surface
         if let stack = stacks.first(where: {
-            abs($0.x - ball.x) < ball.radius * 1.4 && $0.balls.count < 3
+            abs($0.x - ball.x) < ball.radius * 1.4
+                && $0.balls.count < 3
+                && $0.surfaceKey == footing.key
         }) {
             ball.x = stack.x
             ball.y = stackTop(stack) + ball.radius
             stack.balls.append(ball)
             if stack.balls.count == 3 { makeSnowman(stack) }
         } else {
-            let stack = Stack(x: ball.x)
+            let stack = Stack(x: ball.x, baseY: footing.y, surfaceKey: footing.key)
             stack.balls.append(ball)
             stacks.append(stack)
         }
@@ -308,7 +335,7 @@ final class SnowScene: SKScene {
     }
 
     private func stackTop(_ stack: Stack) -> CGFloat {
-        var y = groundY(at: stack.x)
+        var y = stack.baseY
         for ball in stack.balls { y += ball.radius * 2 }
         return y
     }
@@ -319,23 +346,75 @@ final class SnowScene: SKScene {
             ball.node.removeFromParent()
             balls.removeAll { $0 === ball }
         }
-        let figure = Figures.snowman(baseRadius: base * 1.05)
-        figure.position = CGPoint(x: stack.x, y: groundY(at: stack.x))
-        addChild(figure)
-        snowmen.append(figure)
+        let node = Figures.snowman(baseRadius: base * 1.05)
+        node.position = CGPoint(x: stack.x, y: stack.baseY)
+        addChild(node)
+        snowmen.append(Snowman(node: node, x: stack.x, y: stack.baseY,
+                               surfaceKey: stack.surfaceKey))
         stacks.removeAll { $0 === stack }
     }
 
-    /// Top of the snow at `x`, including the Dock drift where it applies.
-    private func groundY(at x: CGFloat) -> CGFloat {
-        var y: CGFloat = 0
+    /// The highest drift at `x` that sits at or below `y`: the screen bottom,
+    /// the Dock, or the top edge of a window. This is what lets a snowball come
+    /// to rest on a window's title bar instead of falling past it.
+    private func support(at x: CGFloat, below y: CGFloat) -> (y: CGFloat, key: String) {
+        var bestKey = bottomKey
+        var bestY: CGFloat = 0
         if let bottom = piles[bottomKey] {
-            y = bottom.baseY + bottom.heightAt(x: x)
+            bestY = bottom.baseY + bottom.heightAt(x: x)
         }
-        if let dock = piles["dock"], x >= dock.minX, x <= dock.maxX {
-            y = max(y, dock.baseY + dock.heightAt(x: x))
+        for pile in piles.values where !pile.isSliding {
+            guard pile.key != bottomKey else { continue }
+            guard x >= pile.minX, x <= pile.maxX else { continue }
+            let top = pile.baseY + pile.heightAt(x: x)
+            if top <= y + 0.5 && top > bestY {
+                bestY = top
+                bestKey = pile.key
+            }
         }
-        return y
+        return (bestY, bestKey)
+    }
+
+    /// True once the drift something was standing on has slid off or vanished.
+    private func supportGone(_ key: String) -> Bool {
+        guard key != bottomKey else { return false }
+        guard let pile = piles[key] else { return true }
+        return pile.isSliding
+    }
+
+    /// Move a window and whatever was perched on it comes down with the snow.
+    private func stepFigures(_ dt: CGFloat) {
+        let doomed = stacks.filter { supportGone($0.surfaceKey) }
+        for stack in doomed {
+            for ball in stack.balls {
+                ball.settled = false
+                ball.vy = 0
+            }
+            stacks.removeAll { $0 === stack }
+        }
+
+        for figure in snowmen where !figure.falling {
+            if supportGone(figure.surfaceKey) { figure.falling = true }
+        }
+
+        var lost: [Snowman] = []
+        for figure in snowmen where figure.falling {
+            figure.vy -= 1500 * dt
+            figure.y += figure.vy * dt
+            let footing = support(at: figure.x, below: figure.y)
+            if figure.y <= footing.y {
+                figure.y = footing.y
+                figure.vy = 0
+                figure.falling = false
+                figure.surfaceKey = footing.key
+            }
+            figure.node.position = CGPoint(x: figure.x, y: figure.y)
+            if figure.y < -240 { lost.append(figure) }
+        }
+        for figure in lost {
+            figure.node.removeFromParent()
+            snowmen.removeAll { $0 === figure }
+        }
     }
 
     /// The bare surface the plow rides along, ignoring the snow on top of it.
@@ -406,21 +485,31 @@ final class SnowScene: SKScene {
     }
 
     private func sweepFigures(before blade: CGFloat) {
-        let caught = balls.filter { $0.x < blade }
+        let caught = balls.filter {
+            $0.x < blade && ($0.surfaceKey == bottomKey || $0.surfaceKey == "dock" || !$0.settled)
+        }
         for ball in caught { ball.node.removeFromParent() }
         if !caught.isEmpty { balls.removeAll { ball in caught.contains { $0 === ball } } }
-        stacks.removeAll { $0.x < blade }
+        stacks.removeAll {
+            $0.x < blade && ($0.surfaceKey == bottomKey || $0.surfaceKey == "dock")
+        }
 
-        let flattened = snowmen.filter { $0.position.x < blade }
+        // the plow only reaches what is standing on the ground or the Dock;
+        // anything perched on a window is above the blade
+        let flattened = snowmen.filter {
+            $0.x < blade && ($0.surfaceKey == bottomKey || $0.surfaceKey == "dock")
+        }
         for figure in flattened {
-            figure.run(.sequence([
+            figure.node.run(.sequence([
                 .group([.fadeOut(withDuration: 0.35),
                         .scaleY(to: 0.15, duration: 0.35),
                         .moveBy(x: 24, y: 0, duration: 0.35)]),
                 .removeFromParent()
             ]))
         }
-        if !flattened.isEmpty { snowmen.removeAll { figure in flattened.contains(figure) } }
+        if !flattened.isEmpty {
+            snowmen.removeAll { figure in flattened.contains { $0 === figure } }
+        }
     }
 
     // MARK: - piles drawing
@@ -448,6 +537,7 @@ final class SnowScene: SKScene {
 
         stepFlakes(dt)
         stepBalls(dt)
+        stepFigures(dt)
         stepPlow(dt)
 
         relaxTimer += dt

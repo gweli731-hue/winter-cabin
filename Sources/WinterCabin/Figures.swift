@@ -119,6 +119,36 @@ enum Figures {
             root.addChild(arm)
         }
 
+        // Santa hat
+        let hatBase = yHead + rHead * 0.58
+        let cone = SKShapeNode()
+        let hp = CGMutablePath()
+        hp.move(to: CGPoint(x: -rHead * 0.86, y: hatBase))
+        hp.addLine(to: CGPoint(x: rHead * 0.86, y: hatBase))
+        hp.addQuadCurve(to: CGPoint(x: rHead * 1.16, y: hatBase + rHead * 1.42),
+                        control: CGPoint(x: rHead * 1.02, y: hatBase + rHead * 1.00))
+        hp.addQuadCurve(to: CGPoint(x: -rHead * 0.86, y: hatBase),
+                        control: CGPoint(x: -rHead * 0.12, y: hatBase + rHead * 0.76))
+        hp.closeSubpath()
+        cone.path = hp
+        cone.fillColor = NSColor(calibratedRed: 0.80, green: 0.16, blue: 0.18, alpha: 1)
+        cone.strokeColor = NSColor(calibratedRed: 0.58, green: 0.10, blue: 0.12, alpha: 1)
+        cone.lineWidth = max(0.8, rHead * 0.05)
+        root.addChild(cone)
+
+        let brim = SKShapeNode(rectOf: CGSize(width: rHead * 1.92, height: rHead * 0.36),
+                               cornerRadius: rHead * 0.18)
+        brim.fillColor = NSColor(calibratedWhite: 0.97, alpha: 1)
+        brim.strokeColor = .clear
+        brim.position = CGPoint(x: 0, y: hatBase)
+        root.addChild(brim)
+
+        let pompom = SKShapeNode(circleOfRadius: rHead * 0.28)
+        pompom.fillColor = NSColor(calibratedWhite: 0.97, alpha: 1)
+        pompom.strokeColor = .clear
+        pompom.position = CGPoint(x: rHead * 1.18, y: hatBase + rHead * 1.46)
+        root.addChild(pompom)
+
         root.setScale(0.1)
         root.run(.sequence([
             .scale(to: 1.12, duration: 0.22),
@@ -178,15 +208,43 @@ enum Figures {
         blade.lineWidth = 1
         root.addChild(blade)
 
-        // wheels
-        for dx in [-h * 0.55, h * 0.42] {
-            let wheel = SKShapeNode(circleOfRadius: h * 0.26)
-            wheel.fillColor = tyre
-            wheel.strokeColor = NSColor(calibratedWhite: 0.35, alpha: 1)
-            wheel.lineWidth = max(1, h * 0.05)
-            wheel.position = CGPoint(x: dx, y: h * 0.26)
-            root.addChild(wheel)
-            wheel.run(.repeatForever(.rotate(byAngle: -.pi * 2, duration: 0.6)))
+        // caterpillar tracks
+        let trackBody = SKShapeNode(rect: CGRect(x: -h * 0.94, y: 0,
+                                                 width: h * 1.68, height: h * 0.32),
+                                    cornerRadius: h * 0.16)
+        trackBody.fillColor = tyre
+        trackBody.strokeColor = NSColor(calibratedWhite: 0.42, alpha: 1)
+        trackBody.lineWidth = max(1, h * 0.04)
+        root.addChild(trackBody)
+
+        // tread marks that crawl backwards, so the track reads as moving
+        for i in 0..<9 {
+            let tread = SKShapeNode(rectOf: CGSize(width: h * 0.05, height: h * 0.24),
+                                    cornerRadius: h * 0.02)
+            tread.fillColor = NSColor(calibratedWhite: 0.44, alpha: 1)
+            tread.strokeColor = .clear
+            let startX = -h * 0.84 + CGFloat(i) * h * 0.21
+            tread.position = CGPoint(x: startX, y: h * 0.16)
+            root.addChild(tread)
+            tread.run(.repeatForever(.sequence([
+                .moveBy(x: -h * 0.21, y: 0, duration: 0.14),
+                .moveBy(x: h * 0.21, y: 0, duration: 0)
+            ])))
+        }
+
+        // rollers inside the track
+        for i in 0..<4 {
+            let roller = SKShapeNode(circleOfRadius: h * 0.11)
+            roller.fillColor = NSColor(calibratedWhite: 0.62, alpha: 1)
+            roller.strokeColor = NSColor(calibratedWhite: 0.32, alpha: 1)
+            roller.lineWidth = max(1, h * 0.03)
+            roller.position = CGPoint(x: -h * 0.64 + CGFloat(i) * h * 0.43, y: h * 0.16)
+            let spoke = SKShapeNode(rectOf: CGSize(width: h * 0.14, height: h * 0.03))
+            spoke.fillColor = NSColor(calibratedWhite: 0.32, alpha: 1)
+            spoke.strokeColor = .clear
+            roller.addChild(spoke)
+            root.addChild(roller)
+            roller.run(.repeatForever(.rotate(byAngle: -.pi * 2, duration: 0.5)))
         }
 
         // beacon
